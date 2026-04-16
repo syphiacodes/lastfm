@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cass's last.fm</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    overflow: hidden;
+    font-family: sans-serif;
+}
+
+.wrap {
+    color: #d6ccff;
+    background: #000;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid #222;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+}
+
+.username {
+    font-size: 14px;
+    text-decoration: none;
+    color: #d6ccff;
+}
+
+.sub {
+    font-size: 10px;
+    opacity: 0.5;
+}
+
+.trackinfo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+}
+
+.trackinfo:hover {
+    background: #111;
+}
+
+.cover {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    background: #111;
+}
+
+.text {
+    flex: 1;
+}
+
+.track {
+    font-size: 13px;
+}
+
+.artist {
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+.now {
+    font-size: 10px;
+    opacity: 0.4;
+}
+</style>
+</head>
+<body>
+
+<lastfm-tracks></lastfm-tracks>
+
+<script type="module">
+class Tracks extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+    }
+
+    connectedCallback() {
+        this.renderLoading();
+        this.load();
+    }
+
+    renderLoading() {
+        this.shadowRoot.innerHTML = `
+            <style>${document.querySelector('style').innerHTML}</style>
+            <div class="wrap">Loading...</div>
+        `;
+    }
+
+    async load() {
+        const user = "casssch";
+        const key = "b5afc752a236a86bbaa97e491fdc2c26";
+
+        try {
+            // fetch profile
+            const profileRes = await fetch(
+                `https://ws.audioscrobbler.com/2.0/?method=user.getinfo&user=${user}&api_key=${key}&format=json`
+            );
+            const profile = await profileRes.json();
+
+            // fetch tracks
+            const tracksRes = await fetch(
+                `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${user}&api_key=${key}&format=json&limit=20`
+            );
+            const data = await tracksRes.json();
+
+            const tracks = data.recenttracks.track;
+
+            const avatar = profile.user.image[2]['#text'];
+
+            const header = `
+                <div class="header">
+                    <img class="avatar" src="${avatar}">
+                    <div>
+                        <a class="username" href="https://www.last.fm/user/${user}" target="_blank">
+                            ${user}
+                        </a>
+                        <div class="sub">recent tracks</div>
+                    </div>
+                </div>
+            `;
+
+            const list = tracks.map(t => {
+                const now = t['@attr']?.nowplaying === 'true';
+                const cover = t.image?.[1]['#text'] || '';
+
+                return `
+                    <div class="trackinfo">
+                        <img class="cover" src="${cover}">
+                        <div class="text">
+                            <div class="track">
+                                ${now ? '▶ ' : ''}${t.name}
+                            </div>
+                            <div class="artist">${t.artist['#text']}</div>
+                        </div>
+                        <div class="now">
+                            ${now ? 'now' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            this.shadowRoot.innerHTML = `
+                <style>${document.querySelector('style').innerHTML}</style>
+                <div class="wrap">
+                    ${list}
+                </div>
+            `;
+
+        } catch (e) {
+            this.shadowRoot.innerHTML = `
+                <style>${document.querySelector('style').innerHTML}</style>
+                <div class="wrap">error loading</div>
+            `;
+            console.error(e);
+        }
+    }
+}
+
+customElements.define('lastfm-tracks', Tracks);
+</script>
+
+</body>
+</html>
